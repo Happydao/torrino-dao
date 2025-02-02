@@ -3,10 +3,11 @@ const fs = require('fs');
 const axios = require('axios');
 
 // 🔹 Token GitHub e Gist ID
-const GITHUB_TOKEN = process.env.G_TOKEN; 
+const GITHUB_TOKEN = process.env.G_TOKEN || require('dotenv').config().parsed.G_TOKEN;
 const GIST_ID = "10f7efaf9403401bac666e86891d24b7";  
 const FILE_NAME = "value.torrino.nft";  
 
+// 🔹 Funzione per ottenere il valore della tesoreria da Step Finance
 async function getTreasuryValue() {
     const browser = await puppeteer.launch({
         headless: true,
@@ -36,7 +37,21 @@ async function getTreasuryValue() {
     return parseFloat(portfolioValue.replace(/,/g, ''));
 }
 
-function calculateNFTValues(treasuryValue) {
+// 🔹 Funzione per ottenere il prezzo di SOL da CoinGecko
+async function getSolPrice() {
+    try {
+        const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+        const solPrice = response.data.solana.usd;
+        console.log(`🔹 Prezzo attuale di SOL: $${solPrice}`);
+        return solPrice;
+    } catch (error) {
+        console.error("❌ Errore nel recupero del prezzo di SOL:", error);
+        return null;
+    }
+}
+
+// 🔹 Funzione per calcolare i valori NFT in USD e SOL
+async function calculateNFTValues(treasuryValue) {
     if (isNaN(treasuryValue)) {
         throw new Error("❌ Errore: impossibile leggere il valore della tesoreria.");
     }
@@ -50,21 +65,27 @@ function calculateNFTValues(treasuryValue) {
     const nftGen1Value = treasuryGen1 / nftGen1Count;
     const nftGen2Value = treasuryGen2 / nftGen2Count;
 
+    const solPrice = await getSolPrice();
+    const nftGen1ValueSol = solPrice ? (nftGen1Value / solPrice) : null;
+    const nftGen2ValueSol = solPrice ? (nftGen2Value / solPrice) : null;
+
     return {
         treasuryValue,
         treasuryGen1,
         treasuryGen2,
         nftGen1Value,
-        nftGen2Value
+        nftGen2Value,
+        solPrice,
+        nftGen1ValueSol,
+        nftGen2ValueSol
     };
 }
 
+// 🔹 Funzione per aggiornare il Gist su GitHub
 async function updateGist(data) {
-    // 🕒 Ottieni la data e l'ora attuali
     const now = new Date();
     const formattedDate = now.toLocaleString("it-IT", { timeZone: "Europe/Rome" });
 
-    // 📤 Testo da aggiornare su GitHub Gist
     const output = `
 🕒 Ultimo aggiornamento: ${formattedDate}
 
@@ -72,8 +93,10 @@ async function updateGist(data) {
 💰 Tesoreria Totale: $${data.treasuryValue.toFixed(2)}
 🔹 Gen 1 Tesoreria (90%): $${data.treasuryGen1.toFixed(2)}
 🔸 Gen 2 Tesoreria (10%): $${data.treasuryGen2.toFixed(2)}
-🖼️ Valore NFT Gen 1 (500 NFT): $${data.nftGen1Value.toFixed(2)}
-🖼️ Valore NFT Gen 2 (888 NFT): $${data.nftGen2Value.toFixed(2)}
+🔹 Prezzo SOL attuale: $${data.solPrice.toFixed(2)}
+
+🖼️ Valore NFT Gen 1 (500 NFT): $${data.nftGen1Value.toFixed(2)} (${data.nftGen1ValueSol ? data.nftGen1ValueSol.toFixed(2) : 'Errore'} SOL)
+🖼️ Valore NFT Gen 2 (888 NFT): $${data.nftGen2Value.toFixed(2)} (${data.nftGen2ValueSol ? data.nftGen2ValueSol.toFixed(2) : 'Errore'} SOL)
     `;
 
     console.log("📤 Aggiorno il Gist su GitHub...");
@@ -100,10 +123,11 @@ async function updateGist(data) {
     }
 }
 
+// 🔹 Funzione principale
 async function main() {
     try {
         const treasuryValue = await getTreasuryValue();
-        const nftData = calculateNFTValues(treasuryValue);
+        const nftData = await calculateNFTValues(treasuryValue);
 
         fs.writeFileSync(FILE_NAME, JSON.stringify(nftData, null, 2));
         console.log(`✅ Dati salvati in \`${FILE_NAME}\`.`);
@@ -114,4 +138,8 @@ async function main() {
     }
 }
 
-main();
+// 🔹 Esegui lo script
+main().then(() => process.exit(0)).catch(error => {
+    console.error("❌ Errore generale:", error);
+    process.exit(1);
+});
