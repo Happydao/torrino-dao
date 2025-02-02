@@ -1,0 +1,26 @@
+name: Aggiornamento NFT ogni ora
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Esegue ogni ora
+  workflow_dispatch: # Permette di avviarlo manualmente
+
+jobs:
+  update-gist:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install puppeteer axios
+
+      - name: Run script
+        run: node full_nft_gist.js
+        env:
+          G_TOKEN: ${{ secrets.G_TOKEN }}
