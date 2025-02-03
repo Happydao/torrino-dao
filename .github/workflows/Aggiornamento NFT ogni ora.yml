@@ -21,6 +21,6 @@ jobs:
         run: npm install puppeteer axios
 
       - name: Run script
-        run: node full_nft_gist.js
+        run: node full_nft_gist_2.0.js
         env:
           G_TOKEN: ${{ secrets.G_TOKEN }}
