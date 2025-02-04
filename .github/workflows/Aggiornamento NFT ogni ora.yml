@@ -1,8 +1,8 @@
 name: Aggiornamento NFT ogni ora
 
 on:
-  schedule:
-    - cron: '0 * * * *'  # Esegue ogni ora
+#  schedule:
+#    - cron: '0 * * * *'  # Esegue ogni ora
   workflow_dispatch: # Permette di avviarlo manualmente
 
 jobs:
